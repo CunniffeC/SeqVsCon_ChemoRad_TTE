@@ -74,15 +74,154 @@ TTE_final <- left_join(TTE_final, clean_stage, by = "patient_id", relationship =
   distinct()
 
 #break up comorbidities
+cardiac_terms <- c(
+  "Myocardial Infarct",
+  "Angina / Coronary Artery Disease",
+  "Congestive Heart Failure (CHF)",
+  "Arrhythmias",
+  "Hypertension",
+  "Venous Disease",
+  "Peripheral Arterial Disease"
+)
+gastro_terms <- c(
+  "Hepatic",
+  "Stomach / Intestine",
+  "Pancreas"
+)
+neuro_terms <- c(
+  "Stroke",
+  "Dementia",
+  "Paralysis",
+  "neuromuscular"
+)
+malig_terms <- c(
+  "Solid Tumor including melanoma",
+  "Leukemia and Myeloma",
+  "Lymphoma"
+)
+
+
 dat_comor <- dat_DS %>%
   select(patient_id, acecomorbidities)%>%
   drop_na(acecomorbidities)%>%
   distinct() %>%
   mutate(overall_comor = ifelse(grepl("Overall", acecomorbidities, fixed = T), parse_number(acecomorbidities), NA)) %>%
   mutate(alcohol = ifelse(grepl("Alcohol", acecomorbidities, fixed = T), parse_number(gsub(".*Alcohol", "", acecomorbidities)),NA))%>%
-  mutate(respiratory_comor = ifelse(grepl("Respiratory", acecomorbidities, fixed = T), parse_number(gsub(".*Respiratory", "", acecomorbidities)),NA))%>%
+  mutate(resp_comor = ifelse(grepl("Respiratory", acecomorbidities, fixed = T), parse_number(gsub(".*Respiratory", "", acecomorbidities)),NA))%>%
   mutate(substance_abuse = ifelse(grepl("Drugs", acecomorbidities, fixed = T), parse_number(gsub(".*Drugs", "", acecomorbidities)),NA))%>%
-  mutate(renal_comor = ifelse(grepl("renal", acecomorbidities, fixed = T), parse_number(gsub(".*renal", "", acecomorbidities)),NA))#%>%
+  mutate(renal_comor = ifelse(grepl("renal", acecomorbidities, fixed = T), parse_number(gsub(".*renal", "", acecomorbidities)),NA))%>%
+  mutate(endocrine_comor = ifelse(grepl("Diabetes", acecomorbidities, fixed = T), parse_number(gsub(".*Diabetes", "", acecomorbidities)),NA))%>%
+  mutate(psych_comor = ifelse(grepl("Psychiatric", acecomorbidities, fixed = T), parse_number(gsub(".*Psychiatric", "", acecomorbidities)),NA))%>%
+  mutate(rheum_comor = ifelse(grepl("Rheumatologic", acecomorbidities, fixed = T), parse_number(gsub(".*Rheumatologic", "", acecomorbidities)),NA))%>%
+  mutate(AIDS_comor = ifelse(grepl("AIDS", acecomorbidities, fixed = T), parse_number(gsub(".*AIDS", "", acecomorbidities)),NA))%>%
+  mutate(obese_comor = ifelse(grepl("Obesity", acecomorbidities, fixed = T), parse_number(gsub(".*Obesity", "", acecomorbidities)),NA))%>%
+  #cardiac comor
+  rowwise() %>%
+  mutate(
+    cardiac_grades = list(
+      unlist(lapply(cardiac_terms, function(term) {
+        if (str_detect(acecomorbidities, fixed(term))) {
+          str_extract(acecomorbidities, paste0(term, " grade \\d")) %>%
+            parse_number()
+        } else {
+          NA
+        }
+      }))
+    ),
+    cardiac_grades = list(na.omit(cardiac_grades)),
+    cardiac_comor = case_when(
+      length(cardiac_grades) == 0 ~ NA_real_,
+      sum(cardiac_grades == 2) >= 2 ~ 3,
+      TRUE ~ max(cardiac_grades)
+    )
+  ) %>%
+  ungroup()%>%
+  #gastro comor
+  rowwise() %>%
+  mutate(
+    gastro_grades = list(
+      unlist(lapply(gastro_terms, function(term) {
+        if (str_detect(acecomorbidities, fixed(term))) {
+          str_extract(acecomorbidities, paste0(term, " grade \\d")) %>%
+            parse_number()
+        } else {
+          NA
+        }
+      }))
+    ),
+    gastro_grades = list(na.omit(gastro_grades)),
+    gastro_comor = case_when(
+      length(gastro_grades) == 0 ~ NA_real_,
+      sum(gastro_grades == 2) >= 2 ~ 3,
+      TRUE ~ max(gastro_grades)
+    )
+  ) %>%
+  ungroup()%>%
+  #neuro comor
+  rowwise() %>%
+  mutate(
+    neuro_grades = list(
+      unlist(lapply(neuro_terms, function(term) {
+        if (str_detect(acecomorbidities, fixed(term))) {
+          str_extract(acecomorbidities, paste0(term, " grade \\d")) %>%
+            parse_number()
+        } else {
+          NA
+        }
+      }))
+    ),
+    neuro_grades = list(na.omit(neuro_grades)),
+    neuro_comor = case_when(
+      length(neuro_grades) == 0 ~ NA_real_,
+      sum(neuro_grades == 2) >= 2 ~ 3,
+      TRUE ~ max(neuro_grades)
+    )
+  ) %>%
+  ungroup()%>%
+  #malig comor
+  rowwise() %>%
+  mutate(
+    malig_grades = list(
+      unlist(lapply(malig_terms, function(term) {
+        if (str_detect(acecomorbidities, fixed(term))) {
+          str_extract(acecomorbidities, paste0(term, " grade \\d")) %>%
+            parse_number()
+        } else {
+          NA
+        }
+      }))
+    ),
+    malig_grades = list(na.omit(malig_grades)),
+    malig_comor = case_when(
+      length(malig_grades) == 0 ~ NA_real_,
+      sum(malig_grades == 2) >= 2 ~ 3,
+      TRUE ~ max(malig_grades)
+    )
+  ) %>%
+  ungroup()%>%
+  rowwise() %>%
+  mutate(
+    n_twos = sum(c_across(
+      ends_with("_comor") & 
+        !all_of(c("cardiac_comor", "resp_comor", "renal_comor", "alcohol", "substance_abuse", "overall_comor"))
+    ) == 2, na.rm = TRUE),
+    
+    max_val = max(c_across(
+      ends_with("_comor") & 
+        !all_of(c("cardiac_comor", "resp_comor", "renal_comor", "alcohol", "substance_abuse", "overall_comor"))
+    ), na.rm = TRUE),
+    
+    other_comor = case_when(
+      is.infinite(max_val) ~ NA_real_,
+      n_twos >= 2 ~ 3,
+      TRUE ~ max_val
+    )
+  ) %>%
+  ungroup() %>%
+  select(-n_twos, -max_val)
+
+
+
 #make season
 
 #check mutationrates 
