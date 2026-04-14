@@ -1,3 +1,7 @@
+#### INITIAL DATA CLEANING TTE ANALYSIS ####
+## By Charlie Cunniffe
+## 14/04/26
+
 ##### libraries #####
 library(tidyverse)
 library(tidyr)
