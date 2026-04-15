@@ -267,9 +267,6 @@ dat_mutation_DS <- dat_DS %>%
   rename(patient_id = patient_id_DS) %>%
   distinct()
 
-dat_mutation1 <- full_join(dat_mutation, dat_mutation_DS, by = "patient_id", relationship = "many-to-many")
-dat_mutation1 <- as.data.frame(sapply(dat_mutation1, function(x) gsub("\'", "", x))) %>% mutate_all(na_if,"")%>% mutate_all(na_if," ")
-
 test_mutation <- full_join(dat_mutation, dat_mutation_DS, by = "patient_id", relationship = "many-to-many") 
 test_mutation <- as.data.frame(sapply(test_mutation, function(x) gsub("\'", "", x))) %>% mutate_all(na_if,"")%>% mutate_all(na_if," ") 
 
@@ -289,10 +286,11 @@ test_mutation <- test_mutation %>%
   ))
 
 test_mutation1 <- test_mutation %>%
+  mutate(across(where(is.character), ~ na_if(., "NULL")))%>%
   mutate(date_dif = as.numeric(anydate(date_seen_DS) - anydate(date_of_event))) %>%
   mutate(patient_id = as.numeric(patient_id)) %>%
   distinct()%>%
-  filter(date_dif > -365 | is.na(date_dif)) %>%
+  #filter(date_dif > -365 | is.na(date_dif)) %>%
   mutate(pdl1_score = ifelse(is.na(pdl1_score), pdl1_score_DS, pdl1_score),
          alk = ifelse(is.na(alk), alk_DS, alk),
          braf = ifelse(is.na(braf), braf_DS, braf),
@@ -302,12 +300,34 @@ test_mutation1 <- test_mutation %>%
          met = ifelse(is.na(met), met_DS, met),
          pi3_k = ifelse(is.na(pi3_k), pi3_k_DS, pi3_k)) %>%
   select(-ends_with("_DS"))%>%
+  mutate(abs_date_dif = ifelse(is.na(date_dif), 0, abs(date_dif)))%>%
+  arrange(abs_date_dif)%>%
+  group_by(patient_id) %>%
+  summarise_all(my.first) %>%
   distinct()
 
 
-surv <- TTE_final %>% select(patient_id, time_days)
-test_mutation1 <- left_join(test_mutation1, surv, by = "patient_id")
+# surv <- TTE_final %>% select(patient_id, time_days)
+# test_mutation1 <- left_join(test_mutation1, surv, by = "patient_id")
 
+clean_mutation <- test_mutation1 %>% select(patient_id, pdl1_score, alk, braf, egfr, fgfr3, kras, met, pi3_k) %>% distinct()
 
+TTE_final <- left_join(TTE_final, clean_mutation, by = "patient_id", relationship = "many-to-many")
+#### remove repeated patients ####
+TTE_final <- TTE_final %>%
+  mutate(across(where(is.character), ~ na_if(., "NULL")))%>%
+  mutate(across(where(is.character), ~ na_if(., "")))%>%
+  mutate(across(where(is.character), ~ na_if(., "Awaited")))%>%
+  arrange(date_seen)%>%
+  group_by(patient_id) %>%
+  summarise_all(my.first) %>% 
+  mutate(imd_average_decile =as.numeric(imd_average_decile))%>%
+  mutate(tumour_side_left = ifelse(tumour_side == "Left", TRUE, ifelse(tumour_side == "Right", FALSE, NA))) %>%
+  mutate(node_size = as.numeric(node_size))%>%
+  mutate(pdl1_score = as.numeric(pdl1_score))%>%
+  mutate(season = as.numeric(season))%>%
+  mutate(tumour_size = as.numeric(gsub("[abcX]", "",  tumour_size))) %>%
+  select(-tumour_side)
 
-#### analysis prelim ####
+  
+
