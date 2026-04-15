@@ -17,6 +17,14 @@ summary(TTE_final) ## provides expected ranges and number missing for each facto
 
 plot_pattern(TTE_final, rotate = TRUE)
 
+##### REMOVE TOO MISSING VARIABLES #####
+TTE_final <- TTE_final %>% select(-kras, - braf, -met, -fgfr3, -pi3_k)
+plot_pattern(TTE_final, rotate = TRUE)
+
+TTE_final_mutations <- TTE_final
+TTE_final <- TTE_final %>% select(-egfr, -pdl1_score, -alk)
+plot_pattern(TTE_final, rotate = TRUE)
+
 ##### IMPUTATION #####
 m=30 ## number of imputed datasets to make (default is 5 but more is recommended)
 maxit = 30 ## number of iterations (default is 5 but more is recommended)
@@ -69,10 +77,10 @@ ecog_imp <- prop.table(table(imp2.dat$ecog,
                                         imp2.dat$imputed),
                                   margin = 2)
 ecog_imp
-tumour_side_imp <- prop.table(table(imp2.dat$tumour_side,
+tumour_side_left_imp <- prop.table(table(imp2.dat$tumour_side_left,
                                         imp2.dat$imputed),
                                   margin = 2)
-tumour_side_imp
+tumour_side_left_imp
 tumour_size_imp <- prop.table(table(imp2.dat$tumour_size,
                  imp2.dat$imputed),
            margin = 2)
@@ -114,7 +122,7 @@ prelim_fit <- with(imp2, coxph(Surv(time_days, deceased)~
                                  imd_average_decile +
                                  ecog +
                                  smoking_history +
-                                 tumour_side +
+                                 tumour_side_left +
                                  tumour_size +
                                  node_size +
                                  cardiac_comor +
