@@ -2,6 +2,14 @@
 ## By Charlie Cunniffe
 ## 14/04/26
 
+
+###########################
+##### RUN THIRD ##########
+##########################
+
+
+
+
 ##### LIBRARIES ####
 library(mice)
 library(survival)
@@ -118,7 +126,7 @@ prelim_fit <- with(imp2, coxph(Surv(time_days, deceased)~
                                  treatconcurrent + 
                                  age + 
                                  time_since_study_start_days +
-                                 season +
+                                 # season +
                                  imd_average_decile +
                                  ecog +
                                  smoking_history +
@@ -127,9 +135,9 @@ prelim_fit <- with(imp2, coxph(Surv(time_days, deceased)~
                                  node_size +
                                  cardiac_comor +
                                  resp_comor +
-                                 renal_comor +
-                                 other_comor +
-                                 alcohol +
-                                 substance_abuse))
+                                 # renal_comor +
+                                 other_comor 
+                                 ))
 results.prelim_fit <- summary(pool(prelim_fit), conf.int=T)
 results.prelim_fit
+

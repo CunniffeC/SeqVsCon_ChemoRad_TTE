@@ -2,6 +2,11 @@
 ## By Charlie Cunniffe
 ## 14/04/26
 
+##########################
+##### RUN FIRST ##########
+#########################
+
+
 ##### libraries #####
 library(tidyverse)
 library(tidyr)
@@ -41,7 +46,8 @@ dat_DS <- left_join(id_dates, dat_DS1, by = c("patient_id", "date_seen"))
 dat_patient <- read.csv("/mnt/data/charliec/ChemoRad_TTE/Data/TTE_patient_data.csv") %>% select(patient_id, imd_average_decile)
 dat_mutation <- read.csv("/mnt/data/charliec/ChemoRad_TTE/Data/TTE_mutation_data.csv") %>% mutate(date_of_event = anydate(date_of_event))
 TTE_final <- dat_protect %>%
-  select(patient_id, date_seen, ecog, deceased, time_days,  age, treatconcurrent) #weight,
+  select(patient_id, date_seen, ecog, deceased, time_days,  age, treatconcurrent, sexmale)%>% #weight,
+  rename(sex_male = sexmale)
 
 TTE_final <- left_join(TTE_final, dat_patient, by="patient_id")
 
@@ -321,13 +327,14 @@ TTE_final <- TTE_final %>%
   arrange(date_seen)%>%
   group_by(patient_id) %>%
   summarise_all(my.first) %>% 
-  mutate(imd_average_decile =as.numeric(imd_average_decile))%>%
+  mutate(imd_average_decile = as.numeric(imd_average_decile))%>%
   mutate(tumour_side_left = ifelse(tumour_side == "Left", TRUE, ifelse(tumour_side == "Right", FALSE, NA))) %>%
-  mutate(node_size = as.numeric(node_size))%>%
+  mutate(node_size = as.factor(as.numeric(node_size)))%>%
   mutate(pdl1_score = as.numeric(pdl1_score))%>%
-  mutate(season = as.numeric(season))%>%
-  mutate(tumour_size = as.numeric(gsub("[abcX]", "",  tumour_size))) %>%
-  select(-tumour_side)
-
-  
+  mutate(season = as.factor(as.numeric(season)))%>%
+  mutate(tumour_size = as.factor(as.numeric(gsub("[abcX]", "",  tumour_size)))) %>%
+  mutate(across(ends_with("_comor"), ~ifelse(. ==3, 2,.)))%>%
+  mutate(across(ends_with("_comor"), ~as.factor(.)))%>%
+  select(-tumour_side) %>%
+  mutate(smoking_history = na_if(smoking_history, "Not Known"))
 
